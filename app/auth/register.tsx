@@ -73,9 +73,14 @@ export default function RegisterScreen() {
 
       Alert.alert(
         'Registration Successful!',
-        'Welcome to Gandhi Nursery Plant Care. You can now start managing your plants.'
+        'Welcome to Gandhi Nursery Plant Care. You can now start managing your plants.',
+        [
+          {
+            text: 'Get Started',
+            onPress: () => router.replace('/(tabs)'),
+          },
+        ]
       );
-      router.replace('/(tabs)');
     } catch (error) {
       Alert.alert('Registration Failed', 'Unable to create account. Please try again.');
     } finally {

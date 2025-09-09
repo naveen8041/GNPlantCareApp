@@ -124,7 +124,7 @@ export default function PlantsScreen() {
 
   const handlePlantPress = (plant: Plant) => {
     router.push({
-      pathname: '/plants', // Use a valid route, or update to your detail route if available
+      pathname: '/plant-detail',
       params: { plantId: plant.id }
     });
   };

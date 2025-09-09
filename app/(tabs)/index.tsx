@@ -3,29 +3,17 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { AuthService } from '@/services/AuthService';
-import { useRouter, useNavigationContainerRef } from 'expo-router';
-import { User } from '@/types/Plant';
+import { router } from 'expo-router';
 
 export default function HomeScreen() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const navigationRef = useNavigationContainerRef();
+  const [user, setUser] = useState(AuthService.getCurrentUser());
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const currentUser = await AuthService.getCurrentUser();
-      setUser(currentUser);
-      setLoading(false);
-    };
-    fetchUser();
-  }, []);
-
-  useEffect(() => {
-    if (!loading && !user && navigationRef.isReady()) {
-      router.replace('/auth/login');
+    if (!user) {
+      // Show login screen if not authenticated
+      router.push('/auth/login');
     }
-  }, [user, loading, navigationRef]);
+  }, [user]);
 
   const features = [
     {
@@ -62,7 +50,7 @@ export default function HomeScreen() {
     },
   ];
 
-  if (loading) {
+  if (!user) {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Loading...</Text>
@@ -75,9 +63,9 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Welcome back,</Text>
-          <Text style={styles.nurseryName}>{user?.nurseryName}</Text>
+          <Text style={styles.nurseryName}>{user.nurseryName}</Text>
         </View>
-        <TouchableOpacity style={styles.profileButton} onPress={() => router.push('./profile')}>
+  <TouchableOpacity style={styles.profileButton} onPress={() => router.push('/profiles')}>
           <Ionicons name="person-circle" size={40} color={Colors.primary} />
         </TouchableOpacity>
       </View>

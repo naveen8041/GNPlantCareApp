@@ -67,7 +67,7 @@ export default function IdentifyScreen() {
   const diagnoseHealth = () => {
     if (selectedImage && result) {
       router.push({
-        pathname: '/plants', // Use a valid route, or update to your diagnose route if available
+        pathname: '/diagnose',
         params: { 
           imageUri: selectedImage, 
           plantName: result.name,
