@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
+import { getAuth, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
@@ -6,6 +9,12 @@ import { AuthService } from '@/services/AuthService';
 import { router } from 'expo-router';
 
 export default function LoginScreen() {
+  // Google Auth Session setup
+  const [request, response, promptAsync] = Google.useAuthRequest({
+  clientId: '617887108724-losbq2ip87k4bjalf8injdh9d2hpa217.apps.googleusercontent.com', // Google OAuth client ID
+    redirectUri: makeRedirectUri(),
+    scopes: ['profile', 'email'],
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,6 +32,39 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } catch (error) {
       Alert.alert('Login Failed', 'Invalid email or password');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Google login response
+  useEffect(() => {
+    const doGoogleLogin = async () => {
+      if (response?.type === 'success') {
+        const { authentication } = response;
+        if (authentication && authentication.accessToken) {
+          const auth = getAuth();
+          const credential = GoogleAuthProvider.credential(null, authentication.accessToken);
+          try {
+            await signInWithCredential(auth, credential);
+            router.replace('/(tabs)');
+          } catch (error) {
+            Alert.alert('Login Failed', 'Unable to sign in with Google');
+          }
+        } else {
+          Alert.alert('Login Failed', 'No authentication token received');
+        }
+      }
+    };
+    doGoogleLogin();
+  }, [response]);
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    try {
+      await promptAsync();
+    } catch (error) {
+      Alert.alert('Login Failed', 'Unable to sign in with Google');
     } finally {
       setIsLoading(false);
     }
@@ -104,6 +146,17 @@ export default function LoginScreen() {
           <Text style={styles.dividerText}>or</Text>
           <View style={styles.dividerLine} />
         </View>
+
+        <TouchableOpacity
+          style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+          onPress={handleGoogleLogin}
+          disabled={isLoading}
+        >
+          <Ionicons name="logo-google" size={20} color="white" style={{ marginRight: 8 }} />
+          <Text style={styles.loginButtonText}>
+            {isLoading ? 'Signing In...' : 'Sign In with Google'}
+          </Text>
+        </TouchableOpacity>
 
         <View style={styles.registerSection}>
           <Text style={styles.registerText}>Don't have an account? </Text>

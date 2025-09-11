@@ -82,7 +82,8 @@ export default function RegisterScreen() {
         ]
       );
     } catch (error) {
-      Alert.alert('Registration Failed', 'Unable to create account. Please try again.');
+      console.log('Registration error:', error);
+      Alert.alert('Registration Failed', error?.message || 'Unable to create account. Please try again.');
     } finally {
       setIsLoading(false);
     }
