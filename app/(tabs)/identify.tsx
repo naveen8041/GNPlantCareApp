@@ -1,4 +1,6 @@
+import * as ImageManipulator from 'expo-image-manipulator';
 import React, { useState } from 'react';
+import * as FileSystem from 'expo-file-system';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -56,8 +58,87 @@ export default function IdentifyScreen() {
 
     setIsAnalyzing(true);
     try {
-  // TODO: Implement plant identification logic or remove if not needed
-  // setResult(identification);
+      // Get base64 directly from file URI
+      let imageData = await FileSystem.readAsStringAsync(selectedImage, { encoding: FileSystem.EncodingType.Base64 });
+      imageData = imageData ? imageData.replace(/\s+/g, '') : '';
+      console.log('Base64 length:', imageData.length);
+      console.log('Base64 start:', imageData.slice(0, 100));
+      console.log('Base64 end:', imageData.slice(-100));
+
+      const apiKey = '2b100HqjaSLZa4P1tHt6KovO2';
+      const requestBody = {
+        images: [imageData],
+        organs: ['leaf'],
+      };
+      console.log('Pl@ntNet request body:', requestBody);
+      let response = await fetch(`https://my-api.plantnet.org/v2/identify/all?api-key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+      console.log('Pl@ntNet request headers:', {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      });
+      console.log('Pl@ntNet response status:', response.status);
+      console.log('Pl@ntNet response headers:', response.headers);
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        data = { error: 'Invalid JSON response' };
+      }
+      console.log('Pl@ntNet API response:', data);
+
+      if (response.status === 415) {
+        // Fallback: try multipart/form-data
+        console.log('Trying multipart/form-data fallback...');
+        if (!selectedImage.startsWith('file://')) {
+          Alert.alert('Error', 'Please select a local image from your device.');
+          setIsAnalyzing(false);
+          return;
+        }
+        const formData = new FormData();
+        // @ts-ignore: React Native FormData
+  formData.append('organs', 'leaf');
+        // @ts-ignore: React Native FormData image object
+        formData.append('images', {
+          uri: selectedImage,
+          name: 'photo.jpg',
+          type: 'image/jpeg',
+        });
+        // Debug: log FormData image object
+        console.log('Pl@ntNet FormData image:', {
+          uri: selectedImage,
+          name: 'photo.jpg',
+          type: 'image/jpeg',
+        });
+        const apiKey = '2b100HqjaSLZa4P1tHt6KovO2';
+        const multipartResponse = await fetch(`https://my-api.plantnet.org/v2/identify/all?api-key=${apiKey}`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            // Do NOT set Content-Type for multipart
+          },
+          body: formData,
+        });
+        console.log('Pl@ntNet multipart response status:', multipartResponse.status);
+        console.log('Pl@ntNet multipart response headers:', multipartResponse.headers);
+        const multipartResult = await multipartResponse.json();
+        console.log('Pl@ntNet multipart API response:', multipartResult);
+        if (multipartResponse.ok) {
+          setResult(multipartResult);
+        } else {
+          Alert.alert('Error', multipartResult?.error || 'Failed to identify plant.');
+        }
+      } else if (response.ok) {
+        setResult(data);
+      } else {
+        Alert.alert('No match found', 'Could not identify the plant.');
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to analyze the image. Please try again.');
     } finally {
@@ -141,13 +222,20 @@ export default function IdentifyScreen() {
             <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
             <View style={styles.resultInfo}>
               <Text style={styles.resultTitle}>Plant Identified!</Text>
-              <Text style={styles.confidenceText}>Confidence: {result.confidence}%</Text>
+              {/* Extract best match from Pl@ntNet response */}
+              {result?.results && result.results.length > 0 ? (
+                <>
+                  <Text style={styles.plantName}>
+                    Plant: {result.results[0].species?.scientificName || result.results[0].species?.commonNames?.[0] || 'Unknown'}
+                  </Text>
+                  <Text style={styles.confidenceText}>
+                    Confidence: {result.results[0].score ? Math.round(result.results[0].score * 100) : '?'}%
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.confidenceText}>No plant details found.</Text>
+              )}
             </View>
-          </View>
-
-          <View style={styles.plantInfo}>
-            <Text style={styles.plantName}>{result.name}</Text>
-            <Text style={styles.scientificName}>{result.scientificName}</Text>
           </View>
 
           <View style={styles.actionButtons}>
@@ -164,10 +252,20 @@ export default function IdentifyScreen() {
                   const userId = user?.id;
                   if (!userId) throw new Error('User not found');
                   await PlantService.addPlant({
+                    id: '', // Firestore will assign
                     userId,
                     name: result.name,
                     scientificName: result.scientificName,
                     image: selectedImage || '',
+                    healthStatus: 'healthy',
+                    lastWatered: new Date(),
+                    nextWatering: new Date(),
+                    diseases: [],
+                    careSchedule: {
+                      watering: [],
+                      medicine: [],
+                      pesticide: []
+                    },
                     addedDate: new Date(),
                   });
                   Alert.alert('Success', 'Plant added to your collection!');
