@@ -25,7 +25,14 @@ export const FirebaseService = {
   // Email/password registration
   async register(email: string, password: string, userData: any) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    await setDoc(doc(db, 'users', userCredential.user.uid), userData);
+    console.log('Registering user with UID:', userCredential.user.uid);
+    try {
+      await setDoc(doc(db, 'users', userCredential.user.uid), userData);
+      console.log('User document written to Firestore:', userCredential.user.uid, userData);
+    } catch (err) {
+      console.error('Error writing user document to Firestore:', err);
+      throw err;
+    }
     return userCredential.user;
   },
   // Email/password login

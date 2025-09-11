@@ -1,12 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { AuthService } from '@/services/AuthService';
+import { FirebaseService } from '@/services/FirebaseService';
 import { router } from 'expo-router';
 
 export default function ProfileScreen() {
-  const [user] = useState(AuthService.getCurrentUser());
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const currentUser = AuthService.getCurrentUser();
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!currentUser) return;
+      setLoading(true);
+      try {
+        // Use Firestore API from firebase/firestore
+  const userId = currentUser?.id;
+        if (!userId) return;
+        const { doc, getDoc, collection } = require('firebase/firestore');
+        console.log('ProfileScreen: currentUser.id', userId);
+        const userDocRef = doc(FirebaseService.db, 'users', userId);
+        const docSnap = await getDoc(userDocRef);
+        console.log('ProfileScreen: Firestore docSnap.exists()', docSnap.exists());
+        if (docSnap.exists()) {
+          setUser(docSnap.data());
+          console.log('ProfileScreen: Firestore user data', docSnap.data());
+        }
+      } catch (error) {
+        // Handle error
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUserProfile();
+  }, [currentUser]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -26,10 +55,20 @@ export default function ProfileScreen() {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Loading profile...</Text>
+      </View>
+    );
+  }
   if (!user) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>User not found</Text>
+        <Text style={styles.errorText}>User not found. Please log in again.</Text>
+        <TouchableOpacity style={styles.editButton} onPress={() => router.replace('/auth/login')}>
+          <Text style={styles.editButtonText}>Go to Login</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -82,7 +121,7 @@ export default function ProfileScreen() {
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+              {user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
             </Text>
           </View>
         </View>

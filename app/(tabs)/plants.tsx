@@ -1,109 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { Plant } from '@/types/Plant';
 import PlantCard from '@/components/PlantCard';
 import { router } from 'expo-router';
+import { PlantService } from '@/services/PlantService';
+import { AuthService } from '@/services/AuthService';
 
-// Mock data for demonstration
-const mockPlants: Plant[] = [
-  {
-    id: '1',
-    name: 'Monstera Deliciosa',
-    scientificName: 'Monstera deliciosa',
-    image: 'https://images.pexels.com/photos/6208086/pexels-photo-6208086.jpeg',
-    healthStatus: 'warning',
-    lastWatered: new Date('2025-01-14'),
-    nextWatering: new Date('2025-01-16'),
-    diseases: [
-      {
-        id: 'spider_mites',
-        name: 'Spider Mites',
-        severity: 'moderate',
-        symptoms: ['Fine webbing on leaves', 'Yellowing spots'],
-        description: 'Small arachnids affecting plant health',
-        organicTreatment: {
-          medicine: 'Insecticidal Soap',
-          dosage: '30ml per liter',
-          frequency: 'Every 3 days',
-          duration: '2-3 weeks',
-          instructions: 'Spray thoroughly on both sides of leaves'
-        },
-        chemicalTreatment: {
-          medicine: 'Miticide (Abamectin)',
-          dosage: '0.5ml per liter',
-          frequency: 'Weekly',
-          duration: '2 weeks',
-          instructions: 'Apply during evening hours'
-        }
-      }
-    ],
-    careSchedule: {
-      watering: [],
-      medicine: [],
-      pesticide: []
-    },
-    addedDate: new Date('2025-01-01'),
-  },
-  {
-    id: '2',
-    name: 'Snake Plant',
-    scientificName: 'Sansevieria trifasciata',
-    image: 'https://images.pexels.com/photos/2123482/pexels-photo-2123482.jpeg',
-    healthStatus: 'healthy',
-    lastWatered: new Date('2025-01-10'),
-    nextWatering: new Date('2025-01-17'),
-    careSchedule: {
-      watering: [],
-      medicine: [],
-      pesticide: []
-    },
-    addedDate: new Date('2025-01-02'),
-  },
-  {
-    id: '3',
-    name: 'Peace Lily',
-    scientificName: 'Spathiphyllum wallisii',
-    image: 'https://images.pexels.com/photos/4503267/pexels-photo-4503267.jpeg',
-    healthStatus: 'critical',
-    lastWatered: new Date('2025-01-13'),
-    nextWatering: new Date('2025-01-15'),
-    diseases: [
-      {
-        id: 'root_rot',
-        name: 'Root Rot',
-        severity: 'severe',
-        symptoms: ['Yellowing leaves', 'Soft roots', 'Foul odor'],
-        description: 'Serious fungal infection affecting roots',
-        organicTreatment: {
-          medicine: 'Neem Oil Solution',
-          dosage: '2 tablespoons per liter',
-          frequency: 'Weekly',
-          duration: '4-6 weeks',
-          instructions: 'Remove affected roots, repot in fresh soil'
-        },
-        chemicalTreatment: {
-          medicine: 'Fungicide (Carbendazim)',
-          dosage: '1g per liter',
-          frequency: 'Bi-weekly',
-          duration: '3-4 weeks',
-          instructions: 'Drench soil completely'
-        }
-      }
-    ],
-    careSchedule: {
-      watering: [],
-      medicine: [],
-      pesticide: []
-    },
-    addedDate: new Date('2025-01-03'),
-  },
-];
+// ...existing code...
 
 export default function PlantsScreen() {
-  const [plants] = useState<Plant[]>(mockPlants);
+  const [plants, setPlants] = useState<Plant[]>([]);
   const [filter, setFilter] = useState<'all' | 'healthy' | 'warning' | 'critical'>('all');
+  const [loading, setLoading] = useState(true);
+  const user = AuthService.getCurrentUser();
+  // Use user.id if uid is not available
+  const userId = user?.id;
+
+  useEffect(() => {
+    const fetchPlants = async () => {
+  if (!userId) return;
+      setLoading(true);
+      try {
+        const data = await PlantService.getPlants(userId);
+        setPlants(data);
+      } catch (error) {
+        // Handle error (show alert, etc.)
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPlants();
+  }, [user]);
 
   const filteredPlants = plants.filter(plant => 
     filter === 'all' || plant.healthStatus === filter
@@ -176,7 +105,12 @@ export default function PlantsScreen() {
         />
       </View>
 
-      {filteredPlants.length === 0 ? (
+      {loading ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="leaf-outline" size={80} color={Colors.gray} />
+          <Text style={styles.emptyTitle}>Loading plants...</Text>
+        </View>
+      ) : filteredPlants.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="leaf-outline" size={80} color={Colors.gray} />
           <Text style={styles.emptyTitle}>No plants found</Text>

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/Colors';
 import { PlantService } from '@/services/PlantService';
+import { AuthService } from '@/services/AuthService';
 import { router } from 'expo-router';
 
 export default function IdentifyScreen() {
@@ -55,8 +56,8 @@ export default function IdentifyScreen() {
 
     setIsAnalyzing(true);
     try {
-      const identification = await PlantService.identifyPlant(selectedImage);
-      setResult(identification);
+  // TODO: Implement plant identification logic or remove if not needed
+  // setResult(identification);
     } catch (error) {
       Alert.alert('Error', 'Failed to analyze the image. Please try again.');
     } finally {
@@ -157,9 +158,22 @@ export default function IdentifyScreen() {
 
             <TouchableOpacity 
               style={[styles.actionButton, styles.addButton]}
-              onPress={() => {
-                // Add to my plants logic would go here
-                Alert.alert('Success', 'Plant added to your collection!');
+              onPress={async () => {
+                try {
+                  const user = AuthService.getCurrentUser();
+                  const userId = user?.id;
+                  if (!userId) throw new Error('User not found');
+                  await PlantService.addPlant({
+                    userId,
+                    name: result.name,
+                    scientificName: result.scientificName,
+                    image: selectedImage || '',
+                    addedDate: new Date(),
+                  });
+                  Alert.alert('Success', 'Plant added to your collection!');
+                } catch (error) {
+                  Alert.alert('Error', 'Failed to add plant');
+                }
               }}
             >
               <Ionicons name="add-circle" size={20} color="white" />

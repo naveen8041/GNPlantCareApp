@@ -46,6 +46,7 @@ export class AuthService {
       nurseryName: userData?.nurseryName || '',
       registrationDate: userData?.registrationDate ? new Date(userData.registrationDate) : new Date(),
     };
+    console.log('AuthService login: currentUser', this.currentUser);
     return this.currentUser;
   }
 
