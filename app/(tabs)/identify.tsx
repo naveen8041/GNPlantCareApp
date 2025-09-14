@@ -1,7 +1,8 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import React, { useState } from 'react';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ScrollView } from 'react-native';
+import { Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/Colors';
@@ -10,7 +11,13 @@ import { AuthService } from '@/services/AuthService';
 import { router } from 'expo-router';
 
 export default function IdentifyScreen() {
+  type HealthResult = {
+    class: string;
+    confidence: number;
+  } | null;
+  const [healthResult, setHealthResult] = useState<HealthResult>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [croppedImage, setCroppedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<any>(null);
 
@@ -22,15 +29,30 @@ export default function IdentifyScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
+  mediaTypes: ['images'],
+      allowsEditing: false, // We'll crop manually
       quality: 0.8,
     });
 
     if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
-      setResult(null);
+      const asset = result.assets[0];
+      // Center crop to square
+      const size = Math.min(asset.width, asset.height);
+      const originX = Math.floor((asset.width - size) / 2);
+      const originY = Math.floor((asset.height - size) / 2);
+      try {
+        const cropped = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [{ crop: { originX, originY, width: size, height: size } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.PNG }
+        );
+        console.log('Cropped image URI:', cropped.uri);
+        setSelectedImage(asset.uri); // Show original image for visibility in Expo Go
+        setCroppedImage(cropped.uri); // Use cropped image for identification
+        setResult(null);
+      } catch (err) {
+        Alert.alert('Error', 'Failed to crop image.');
+      }
     }
   };
 
@@ -42,24 +64,39 @@ export default function IdentifyScreen() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: false, // We'll crop manually
       quality: 0.8,
     });
 
     if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
-      setResult(null);
+      const asset = result.assets[0];
+      // Center crop to square
+      const size = Math.min(asset.width, asset.height);
+      const originX = Math.floor((asset.width - size) / 2);
+      const originY = Math.floor((asset.height - size) / 2);
+      try {
+        const cropped = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [{ crop: { originX, originY, width: size, height: size } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.PNG }
+        );
+        console.log('Cropped image URI:', cropped.uri);
+        setSelectedImage(asset.uri); // Show original image for visibility in Expo Go
+        setCroppedImage(cropped.uri); // Use cropped image for identification
+        setResult(null);
+      } catch (err) {
+        Alert.alert('Error', 'Failed to crop image.');
+      }
     }
   };
 
   const analyzeImage = async () => {
-    if (!selectedImage) return;
+  if (!croppedImage) return;
 
     setIsAnalyzing(true);
     try {
       // Get base64 directly from file URI
-      let imageData = await FileSystem.readAsStringAsync(selectedImage, { encoding: FileSystem.EncodingType.Base64 });
+  let imageData = await FileSystem.readAsStringAsync(croppedImage, { encoding: 'base64' });
       imageData = imageData ? imageData.replace(/\s+/g, '') : '';
       console.log('Base64 length:', imageData.length);
       console.log('Base64 start:', imageData.slice(0, 100));
@@ -96,7 +133,7 @@ export default function IdentifyScreen() {
       if (response.status === 415) {
         // Fallback: try multipart/form-data
         console.log('Trying multipart/form-data fallback...');
-        if (!selectedImage.startsWith('file://')) {
+        if (!selectedImage || !selectedImage.startsWith('file://')) {
           Alert.alert('Error', 'Please select a local image from your device.');
           setIsAnalyzing(false);
           return;
@@ -147,15 +184,32 @@ export default function IdentifyScreen() {
   };
 
   const diagnoseHealth = () => {
-    if (selectedImage && result) {
-      router.push({
-        pathname: '/diagnose',
-        params: { 
-          imageUri: selectedImage, 
-          plantName: result.name,
-          scientificName: result.scientificName 
+    if (selectedImage) {
+      setHealthResult(null);
+      // Call Flask API
+      const checkHealth = async () => {
+        try {
+          const formData = new FormData();
+          // @ts-ignore: React Native FormData image object
+          formData.append('file', {
+            uri: selectedImage,
+            name: 'photo.jpg',
+            type: 'image/jpeg',
+          } as any);
+          const response = await fetch('http://192.168.1.9:5000/predict', {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          const result = await response.json();
+          setHealthResult(result);
+        } catch (error) {
+          Alert.alert('Error', 'Health check failed.');
         }
-      });
+      };
+      checkHealth();
     }
   };
 
@@ -169,7 +223,11 @@ export default function IdentifyScreen() {
       <View style={styles.imageSection}>
         {selectedImage ? (
           <View style={styles.imageContainer}>
-            <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
+            {selectedImage.startsWith('file://') || selectedImage.startsWith('http') ? (
+              <Image source={{ uri: selectedImage }} style={styles.selectedImage} onError={() => Alert.alert('Error', 'Failed to display image.')} />
+            ) : (
+              <Text style={styles.placeholderText}>Invalid image URI</Text>
+            )}
             <TouchableOpacity 
               style={styles.changeImageButton}
               onPress={() => setSelectedImage(null)}
@@ -281,37 +339,25 @@ export default function IdentifyScreen() {
         </View>
       )}
 
-      <View style={styles.tipsSection}>
-        <Text style={styles.tipsTitle}>Tips for better identification:</Text>
-        <View style={styles.tip}>
-          <Ionicons name="checkmark" size={16} color={Colors.success} />
-          <Text style={styles.tipText}>Take clear, well-lit photos</Text>
+      {healthResult && (
+        <View style={styles.resultContainer}>
+          <Text style={styles.resultTitle}>Health Check Result</Text>
+          <Text style={styles.plantName}>Status: {healthResult?.class ?? 'Unknown'}</Text>
+          <Text style={styles.confidenceText}>Confidence: {healthResult?.confidence !== undefined ? Math.round(healthResult.confidence * 100) : '?'}%</Text>
         </View>
-        <View style={styles.tip}>
-          <Ionicons name="checkmark" size={16} color={Colors.success} />
-          <Text style={styles.tipText}>Include leaves, flowers, or distinctive features</Text>
-        </View>
-        <View style={styles.tip}>
-          <Ionicons name="checkmark" size={16} color={Colors.success} />
-          <Text style={styles.tipText}>Avoid blurry or distant shots</Text>
-        </View>
-        <View style={styles.tip}>
-          <Ionicons name="checkmark" size={16} color={Colors.success} />
-          <Text style={styles.tipText}>Clean the camera lens for best results</Text>
-        </View>
-      </View>
+      )}
     </ScrollView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
   },
   header: {
-    padding: 20,
-    paddingTop: 50,
+    marginTop: 32,
+    marginHorizontal: 20,
+    marginBottom: 16,
   },
   title: {
     fontSize: 28,
@@ -334,7 +380,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   selectedImage: {
-    width: '100%',
+    width: Dimensions.get('window').width - 40, // match marginHorizontal: 20
     height: 300,
     backgroundColor: Colors.lightGray,
   },
