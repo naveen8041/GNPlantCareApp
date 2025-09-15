@@ -11,7 +11,10 @@ python download_images.py
 pip install scipy
 PS C:\Users\leela\Downloads\Final4\GNPlantCareApp\plant-disease-api> C:\Users\leela\AppData\Local\Programs\Python\Python311\python -m venv image-env
 C:\Users\leela\AppData\Local\Programs\Python\Python311\python -m pip install bing-image-downloader
+<<<<<<< HEAD
 C:\Users\leela\AppData\Local\Programs\Python\Python311\python -m pip install google_images_search
+=======
+>>>>>>> 116c06a9960a32a0463a3cb7ff0a56f200dfdc6d
 C:\Users\leela\AppData\Local\Programs\Python\Python311\python download_images.py
 
 
@@ -43,4 +46,8 @@ npx expo start
 # - Backend API runs at http://127.0.0.1:5000
 # - Frontend Expo app available for device/emulator testing
 # - Ensure dataset is organized before training
+<<<<<<< HEAD
 # - Use test_prediction.py to automate API prediction testing
+=======
+# - Use test_prediction.py to automate API prediction testing
+>>>>>>> 116c06a9960a32a0463a3cb7ff0a56f200dfdc6d

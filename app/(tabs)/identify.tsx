@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 
 export default function IdentifyScreen() {
   type HealthResult = {
+<<<<<<< HEAD
     plant: string;
     plant_confidence: number;
     disease: string;
@@ -19,6 +20,10 @@ export default function IdentifyScreen() {
     health_confidence: number;
     spoilage_percent: number;
     medicine: string;
+=======
+    class: string;
+    confidence: number;
+>>>>>>> 116c06a9960a32a0463a3cb7ff0a56f200dfdc6d
   } | null;
   const [healthResult, setHealthResult] = useState<HealthResult>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -347,6 +352,7 @@ export default function IdentifyScreen() {
       {healthResult && (
         <View style={styles.resultContainer}>
           <Text style={styles.resultTitle}>Health Check Result</Text>
+<<<<<<< HEAD
           <Text style={styles.plantName}>Plant: {healthResult?.plant ?? 'Unknown'}</Text>
           <Text style={styles.confidenceText}>Plant Confidence: {healthResult?.plant_confidence !== undefined ? Math.round(healthResult.plant_confidence * 100) : '?'}%</Text>
           <Text style={styles.confidenceText}>Disease: {healthResult?.disease ?? 'Unknown'}</Text>
@@ -354,6 +360,10 @@ export default function IdentifyScreen() {
           <Text style={styles.confidenceText}>Health Confidence: {healthResult?.health_confidence !== undefined ? Math.round(healthResult.health_confidence * 100) : '?'}%</Text>
           <Text style={styles.confidenceText}>Spoilage: {healthResult?.spoilage_percent !== undefined ? `${healthResult.spoilage_percent}%` : '?%'}</Text>
           <Text style={styles.confidenceText}>Recommended Medicine: {healthResult?.medicine ?? 'N/A'}</Text>
+=======
+          <Text style={styles.plantName}>Status: {healthResult?.class ?? 'Unknown'}</Text>
+          <Text style={styles.confidenceText}>Confidence: {healthResult?.confidence !== undefined ? Math.round(healthResult.confidence * 100) : '?'}%</Text>
+>>>>>>> 116c06a9960a32a0463a3cb7ff0a56f200dfdc6d
         </View>
       )}
     </ScrollView>
