@@ -9,25 +9,31 @@ import os
 
 app = Flask(__name__)
 
-<<<<<<< HEAD
+
+# IDENTIFY_MODEL_PATH: For Plant Confidence and plant details
 IDENTIFY_MODEL_PATH = 'plant_disease_mobilenet_final.h5'
+# HEALTH_MODEL_PATH: For Condition, Health Confidence, and Spoilage
 HEALTH_MODEL_PATH = 'plant_health_model.h5'
-print('Loading models:', IDENTIFY_MODEL_PATH, HEALTH_MODEL_PATH)
+# DISEASE_MODEL_PATH: For Disease field alone
+DISEASE_MODEL_PATH = 'disease_model.h5'
+
+print('Loading models:', IDENTIFY_MODEL_PATH, HEALTH_MODEL_PATH, DISEASE_MODEL_PATH)
 identify_model = load_model(IDENTIFY_MODEL_PATH)
 health_model = load_model(HEALTH_MODEL_PATH)
+disease_model = load_model(DISEASE_MODEL_PATH)
 print('Models loaded successfully.')
 print('Model input shape:', identify_model.input_shape)
-=======
-MODEL_PATH = 'plant_disease_mobilenet_final.h5'  # Latest model for predictions
-print('Loading model:', MODEL_PATH)
-model = load_model(MODEL_PATH)
-print('Model loaded successfully.')
-print('Model input shape:', model.input_shape)
->>>>>>> 116c06a9960a32a0463a3cb7ff0a56f200dfdc6d
 
-# Dynamically load class names from train directory
-CLASS_NAMES = [d for d in os.listdir(train_dir) if os.path.isdir(os.path.join(train_dir, d))]
+
+
+# Dynamically load class names for plant identification (original train_dir)
+CLASS_NAMES = [d for d in os.listdir('C://Users//leela//Downloads//Final4//GNPlantCareApp//plant-disease-data//train') if os.path.isdir(os.path.join('C://Users//leela//Downloads//Final4//GNPlantCareApp//plant-disease-data//train', d))]
 print('Loaded class names:', CLASS_NAMES)
+
+# Load disease class names from PlantVillage dataset for disease model (ignore non-class folders)
+plantvillage_dir = 'C:/Users/leela/Downloads/diseases_images/Newfolder/archive/PlantVillage'
+DISEASE_CLASS_NAMES = [d for d in os.listdir(plantvillage_dir) if os.path.isdir(os.path.join(plantvillage_dir, d)) and d.lower() != 'plantvillage']
+print('Loaded disease class names:', DISEASE_CLASS_NAMES)
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -36,7 +42,6 @@ def predict():
         print('No file uploaded')
         return jsonify({'error': 'No file uploaded'}), 400
     file = request.files['file']
-<<<<<<< HEAD
     # Accept only image files
     allowed_exts = {'.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp', '.tiff'}
     ext = os.path.splitext(file.filename)[1].lower()
@@ -62,15 +67,16 @@ def predict():
         os.remove(img_path)
         return jsonify({'error': 'Invalid image file'}), 400
 
-    # Plant identification
+
+    # Plant identification (plant details and confidence)
     id_preds = identify_model.predict(x_id)
     id_class_idx = np.argmax(id_preds[0])
     id_confidence = float(id_preds[0][id_class_idx])
     id_class = CLASS_NAMES[id_class_idx] if id_class_idx < len(CLASS_NAMES) else 'Unknown'
 
-    # Health/disease info
+    # Health model (condition, health confidence, spoilage)
     health_preds = health_model.predict(x_health)
-    # Use fixed class mapping from training
+    print(f'Raw health model predictions: {health_preds[0]}')
     class_indices = {
         'guava_healthy': 0,
         'guava_unhealthy': 1,
@@ -104,72 +110,53 @@ def predict():
     medicine = medicine_map.get(health_class, 'Unknown')
     plant_conf_threshold = 0.7
     health_conf_threshold = 0.7
-    # Dynamic spoilage percent based on health_confidence and condition
+    # Improved spoilage percent calculation
     if health_confidence >= health_conf_threshold:
-        if condition == "unhealthy":
-            spoilage_percent = int(health_confidence * 100)
-        elif condition == "healthy":
-            spoilage_percent = int((1 - health_confidence) * 10 + 10)  # 10-20% for healthy
+        if condition == "healthy":
+            # Healthy: low spoilage (10-30%)
+            spoilage_percent = int((1 - health_confidence) * 20) + 10
+        elif condition == "unhealthy":
+            # Unhealthy: high spoilage (30-100%)
+            spoilage_percent = int((1 - health_confidence) * 70) + 30
         else:
             spoilage_percent = 0
     else:
         spoilage_percent = 0
 
-    if id_confidence < plant_conf_threshold:
-            est_health_conf = round(id_confidence, 2)
-            est_spoilage = int((1 - id_confidence) * 80 + 20)  # 20-100% spoilage based on plant confidence
-            result = {
-                "plant": id_class,
-                "plant_confidence": id_confidence,
-                "disease": "Unknown",
-                "condition": "unhealthy",
-                "health_confidence": est_health_conf,
-                "spoilage_percent": est_spoilage,
-                "medicine": "N/A"
-            }
-    elif health_confidence < health_conf_threshold:
-        result = {
-            "plant": id_class,
-            "plant_confidence": id_confidence,
-            "disease": "Unknown",
-            "condition": "Low confidence",
-            "health_confidence": health_confidence,
-            "spoilage_percent": 0,
-            "medicine": "N/A"
-        }
-    else:
-        result = {
-            "plant": id_class,
-            "plant_confidence": id_confidence,
-            "disease": disease,
-            "condition": condition,
-            "health_confidence": health_confidence,
-            "spoilage_percent": spoilage_percent,
-            "medicine": medicine
-=======
-    img_path = os.path.join('uploads', file.filename)
-    file.save(img_path)
-    print('Saved file to', img_path)
-
-    img = image.load_img(img_path, target_size=(128, 128))  # Match model input
-    x = image.img_to_array(img)
-    x = np.expand_dims(x, axis=0) / 255.0
-
-    preds = model.predict(x)
-    print('Model output:', preds[0])
-    class_idx = np.argmax(preds[0])
-    print('Class idx:', class_idx)
-    if class_idx >= len(CLASS_NAMES):
-        result = {
-            'class': 'Unknown',
-            'confidence': float(np.max(preds[0]))
-        }
-    else:
-        result = {
-            'class': CLASS_NAMES[class_idx],
-            'confidence': float(preds[0][class_idx])
->>>>>>> 116c06a9960a32a0463a3cb7ff0a56f200dfdc6d
-        }
+    # Disease model (disease field only)
+    disease_pred = "Unknown"
+    try:
+        # If plant or health model predicts healthy, set disease to 'healthy'
+        if condition == "healthy" or "healthy" in id_class.lower():
+            disease_pred = "healthy"
+        else:
+            disease_model = load_model(DISEASE_MODEL_PATH)
+            img = image.load_img(img_path, target_size=(224, 224))
+            x = image.img_to_array(img)
+            x = np.expand_dims(x, axis=0)
+            x = x / 255.0
+            preds = disease_model.predict(x)
+            disease_class_idx = np.argmax(preds[0])
+            if disease_class_idx < len(DISEASE_CLASS_NAMES):
+                folder_name = DISEASE_CLASS_NAMES[disease_class_idx]
+                # Replace the part before the first underscore with the plant name
+                if '_' in folder_name:
+                    parts = folder_name.split('_', 1)
+                    disease_pred = f"{id_class}_{parts[1]}"
+                else:
+                    disease_pred = folder_name
+            else:
+                disease_pred = str(disease_class_idx)
+    except Exception as e:
+        print(f"Disease prediction error: {e}")
+    result = {
+        "plant": id_class,
+        "plant_confidence": id_confidence,
+        "disease": disease_pred,
+        "condition": condition,
+        "spoilage_percent": spoilage_percent,
+        "medicine": medicine
+    }
     print('Prediction result:', result)
     os.remove(img_path)
     return jsonify(result)

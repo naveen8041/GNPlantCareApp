@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-  "newArchEnabled": false,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true
     },
@@ -32,6 +32,12 @@
       "eas": {
         "projectId": "d2c45cf7-4bc8-4ffe-9b05-6bfd5c282a49"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d2c45cf7-4bc8-4ffe-9b05-6bfd5c282a49"
     }
   }
 }
